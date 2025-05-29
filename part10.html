@@ -19,7 +19,7 @@
         physics: {
           default: 'arcade',
           arcade: {
-            gravity: { y: 400 },
+            gravity: { y: 100 },
             debug: false,
           },
         },
@@ -42,6 +42,7 @@
       var ground;
       var roof;
       var velocity = 60;
+      var initalGravity = 200;
       var growPlatform;
       var playerOne = {
         slowPlatform: false,
@@ -65,6 +66,8 @@
       }
 
       function create() {
+        this.physics.world.createDebugGraphic();
+
         //  A simple background for our game
         this.add.image(400, 300, 'sky');
 
@@ -156,13 +159,17 @@
         this.shrinkPlatform.setTint(0x1e7df0);
 
         // The player and its settings
-        player = this.physics.add.sprite(300, 50, 'dude');
 
         //  Player physics properties. Give the little guy a slight bounce.
+        //  initial player new player
+
+        player = this.physics.add.sprite(300, 50, 'dude');
         player.setBounce(0.01);
         player.setCollideWorldBounds(true);
         player.body.checkCollision.down = true;
         player.speed = 160;
+        player.moves = true;
+        player.setGravityY(initalGravity);
 
         //  Our player animations, turning, walking left and walking right.
         this.anims.create({
@@ -293,9 +300,13 @@
 
       function update() {
         // Reset at the start of each frame
-
+        player.setVelocityX(0);
         let speed = player.speed || 160; //
-        console.log(player.unshrinkTimerStarted);
+        // console.log('unshrinks time', player.unshrinkTimerStarted);
+        // console.log('gravityY:', player.body.gravity.y);
+        // console.log('allowGravity:', player.body.allowGravity);
+        // console.log('immovable:', player.body.immovable);
+        console.log('height', player.body.scaleX);
         const isOnFastPlatform =
           player.body.touching.down &&
           this.fastPlatform.body.touching.up;
@@ -333,8 +344,8 @@
                 ease: 'Power2',
                 onComplete: () => {
                   player.body.setSize(
-                    player.width,
-                    player.height,
+                    player.displayWidth,
+                    player.displayHeight,
                     true
                   );
                   player.ungrowTimerStarted = false;
@@ -369,8 +380,8 @@
                 ease: 'Power2',
                 onComplete: () => {
                   player.body.setSize(
-                    player.width,
-                    player.height,
+                    player.displayWidth,
+                    player.displayHeight,
                     true
                   );
                   player.unshrinkTimerStarted = false;
@@ -381,6 +392,7 @@
             }
           });
         }
+        console.log(player.velocityY);
 
         if (isOnFastPlatform && cursors.right.isDown) {
           speed = 300; // Boosted speed when going right on fastPlatform
@@ -425,8 +437,6 @@
 
           player.anims.play('right', true);
         } else {
-          player.setVelocityX(0);
-
           player.anims.play('turn');
         }
 
@@ -483,31 +493,53 @@
         }
       }
 
-      function playerLose(player, ground) {
-        player.body.enable = false;
-        player.setTint(0xff0000);
-        player.anims.play('turn');
+      function playerLose() {
+        // player.setVelocity(0, 0);
 
         gameOver = true;
-
+        player.body.checkCollision.none = true;
+        player.unshrinkTimerStarted = false;
+        player.ungrowTimeStarted = false;
+        player.setTint(0xff0000);
+        player.anims.play('turn');
         this.time.delayedCall(2000, () => {
           respawnPlayer.call(this);
         });
       }
 
       function respawnPlayer() {
-        player.setPosition(300, 50);
-
-        player.clearTint();
-        player.setVelocity(0, 0);
+        // Step 1: Reset scale
+        this.tweens.killTweensOf(player);
         player.setScale(1);
-        player.body.setSize(player.width, player.height, true);
-        const offsetY = player.displayHeight - player.body.height;
-        player.body.setOffset(0, offsetY);
-        player.body.setGravityY(0);
-        player.setBounce(0.2);
 
-        player.body.enable = true;
+        // Step 2: Re-enable body
+        // player.body.enable = true;
+        player.body.checkCollision.none = false;
+        player.setCollideWorldBounds(true);
+        player.body.checkCollision.down = true;
+
+        // Step 3: Force body to sync with display
+        player.body.setSize(
+          player.displayWidth,
+          player.displayHeight,
+          true
+        );
+        player.body.setOffset(0, 0);
+        // player.body.updateFromGameObject();
+
+        // Step 4: Reset physics properties
+        player.setGravityY(initalGravity);
+        player.body.allowGravity = true;
+        player.body.setImmovable(false);
+        player.setBounce(0.01);
+        player.setVelocity(0, 0);
+
+        // Step 5: Reposition the player
+        player.setPosition(290, 75);
+
+        // Step 6: Restore state
+        player.clearTint();
+        resetPlayerPhysics();
         gameOver = false;
       }
 
@@ -534,6 +566,7 @@
           growPlatform.body.touching.up &&
           player.scaleX <= 1
         ) {
+          makePlayerHeavy();
           this.tweens.add({
             targets: player,
             scaleX: 1.2,
@@ -542,10 +575,11 @@
             ease: 'Power2',
             onComplete: () => {
               // ⚠️ Update body size after tween finishes
-              player.body.setSize(player.width, player.height, true);
+
               const offsetY =
                 player.displayHeight - player.body.height;
-              player.body.setOffset(0, offsetY);
+              player.setOffset(0, offsetY);
+              player.setSize(player.width, player.height, true);
               // player.body.setOffset(0, 0);
               player.ungrowTimeStarted = false;
             },
@@ -559,6 +593,7 @@
           shrinkPlatform.body.touching.up &&
           player.scaleX >= 1
         ) {
+          makePlayerLight();
           this.tweens.add({
             targets: player,
             scaleX: 0.75,
@@ -567,10 +602,11 @@
             ease: 'Power2',
             onComplete: () => {
               // ⚠️ Update body size after tween finishes
-              player.body.setSize(player.width, player.height, true);
+
               const offsetY =
                 player.displayHeight - player.body.height;
-              player.body.setOffset(0, offsetY);
+              player.setOffset(0, offsetY);
+              player.setSize(player.width, player.height, true);
               // player.body.setOffset(0, 0);
               player.unshrinkTimerStarted = false;
             },
@@ -609,14 +645,17 @@
       // }
 
       function makePlayerHeavy() {
-        player.body.setGravityY(1000);
+        player.setGravityY(300);
         player.setBounce(0);
-        player.setDrag(500);
+      }
+
+      function makePlayerLight() {
+        player.setGravityY(100);
       }
 
       function resetPlayerPhysics() {
-        player.body.setGravityY(0);
-        player.setBounce(0.2);
+        player.body.setGravityY(initalGravity);
+        player.setBounce(0.01);
         player.setDrag(0);
       }
 
