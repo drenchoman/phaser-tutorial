@@ -158,6 +158,15 @@
         this.shrinkPlatform.setVelocityY(-velocity);
         this.shrinkPlatform.setTint(0x1e7df0);
 
+        this.cloudPlatform = this.platforms.create(
+          Phaser.Math.Between(-50, 1000),
+          Phaser.Math.Between(800, 1200)
+        );
+
+        this.cloudPlatform.displayWidth = 250;
+        this.cloudPlatform.setVelocityY(-velocity);
+        this.cloudPlatform.setTint(0xbae0f3);
+
         // The player and its settings
 
         //  Player physics properties. Give the little guy a slight bounce.
@@ -170,6 +179,7 @@
         player.speed = 160;
         player.moves = true;
         player.setGravityY(initalGravity);
+        player.p1Size = 2;
 
         //  Our player animations, turning, walking left and walking right.
         this.anims.create({
@@ -279,6 +289,14 @@
           this
         );
 
+        this.physics.add.collider(
+          player,
+          this.cloudPlatform,
+          cloudy,
+          null,
+          this
+        );
+
         //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
         this.physics.add.overlap(
           player,
@@ -323,6 +341,35 @@
           player.body.touching.down &&
           this.growPlatform.body.touching.up;
 
+        const isOnCloudPlatform =
+          player.body.touching.down &&
+          this.cloudPlatform.body.touching.up;
+
+        // Shrink after seconds if normal size
+        if (isOnCloudPlatform && player.p1Size == 2) {
+          this.tweens.add({
+            targets: this.cloudPlatform,
+            alpha: 0,
+            duration: 2000,
+            ease: 'Linear',
+            onComplete: () => {
+              this.cloudPlatform.disableBody(true, true);
+            },
+          });
+        }
+
+        if (isOnCloudPlatform && player.p1Size == 3) {
+          this.tweens.add({
+            targets: this.cloudPlatform,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Linear',
+            onComplete: () => {
+              this.cloudPlatform.disableBody(true, true);
+            },
+          });
+        }
+
         if (
           !isOnGrowPlatform &&
           player.scaleX > 1 &&
@@ -348,6 +395,7 @@
                     player.displayHeight,
                     true
                   );
+                  resetPlayerPhysics();
                   player.ungrowTimerStarted = false;
                 },
               });
@@ -384,6 +432,7 @@
                     player.displayHeight,
                     true
                   );
+                  resetPlayerPhysics();
                   player.unshrinkTimerStarted = false;
                 },
               });
@@ -450,8 +499,8 @@
             // Off the top of the screen — reposition somewhere below
             const newX = Phaser.Math.Between(-50, 850); // random x within screen
             const newY = 650 + Phaser.Math.Between(0, 200); // respawn below screen
-
-            platform.setPosition(newX, newY);
+            platform.enableBody(true, newX, newY, true, true);
+            // platform.setPosition(newX, newY);
             platform.setVelocityY(-velocity);
           }
         });
@@ -556,6 +605,10 @@
         console.log('gofast');
       }
 
+      function cloudy(player, cloudPlatform) {
+        console.log('cloudy...');
+      }
+
       function goSlow(player, slowPlatform) {
         console.log('goslow');
       }
@@ -647,16 +700,19 @@
       function makePlayerHeavy() {
         player.setGravityY(300);
         player.setBounce(0);
+        player.p1Size = 3;
       }
 
       function makePlayerLight() {
         player.setGravityY(100);
+        player.p1Size = 1;
       }
 
       function resetPlayerPhysics() {
         player.body.setGravityY(initalGravity);
         player.setBounce(0.01);
         player.setDrag(0);
+        player.p1Size = 2;
       }
 
       function hitBomb(player, bomb) {
