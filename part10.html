@@ -353,7 +353,18 @@
             duration: 2000,
             ease: 'Linear',
             onComplete: () => {
+              const newX = Phaser.Math.Between(-50, 850); // random x within screen
+              const newY = 650 + Phaser.Math.Between(0, 200);
               this.cloudPlatform.disableBody(true, true);
+              this.cloudPlatform.enableBody(
+                true,
+                newX,
+                newY,
+                true,
+                true
+              );
+              this.cloudPlatform.setAlpha(1);
+              this.cloudPlatform.setVelocityY(-velocity);
             },
           });
         }
@@ -365,7 +376,18 @@
             duration: 1000,
             ease: 'Linear',
             onComplete: () => {
+              const newX = Phaser.Math.Between(-50, 850); // random x within screen
+              const newY = 650 + Phaser.Math.Between(0, 200);
               this.cloudPlatform.disableBody(true, true);
+              this.cloudPlatform.enableBody(
+                true,
+                newX,
+                newY,
+                true,
+                true
+              );
+              this.cloudPlatform.setAlpha(1);
+              this.cloudPlatform.setVelocityY(-velocity);
             },
           });
         }
@@ -499,8 +521,9 @@
             // Off the top of the screen — reposition somewhere below
             const newX = Phaser.Math.Between(-50, 850); // random x within screen
             const newY = 650 + Phaser.Math.Between(0, 200); // respawn below screen
-            platform.enableBody(true, newX, newY, true, true);
-            // platform.setPosition(newX, newY);
+            // platform.enableBody(true, newX, newY, true, true);
+
+            platform.setPosition(newX, newY);
             platform.setVelocityY(-velocity);
           }
         });
