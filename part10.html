@@ -34,7 +34,8 @@
       var stars;
       var bombs;
       var platforms;
-      var cursors;
+      var p1Controls;
+      var p2Controls;
       var score = 0;
       var gameOver = false;
       var scoreText;
@@ -179,7 +180,19 @@
         player.speed = 160;
         player.moves = true;
         player.setGravityY(initalGravity);
-        player.p1Size = 2;
+        player.size = 3;
+
+        // Player 2
+
+        player2 = this.physics.add.sprite(350, 50, 'dude');
+        player2.setBounce(0.01);
+        player2.setCollideWorldBounds(true);
+        player2.body.checkCollision.down = true;
+        player2.speed = 160;
+        player2.moves = true;
+        player2.setGravityY(initalGravity);
+        player2.size = 2;
+        player2.setTint(0xff3fbf);
 
         //  Our player animations, turning, walking left and walking right.
         this.anims.create({
@@ -209,21 +222,12 @@
         });
 
         //  Input Events
-        cursors = this.input.keyboard.createCursorKeys();
-
-        //  Some stars to collect, 12 in total, evenly spaced 70 pixels apart along the x axis
-        stars = this.physics.add.group({
-          key: 'star',
-          repeat: 11,
-          setXY: { x: 12, y: 0, stepX: 70 },
+        p1Controls = this.input.keyboard.createCursorKeys();
+        p2Controls = this.input.keyboard.addKeys({
+          left: Phaser.Input.Keyboard.KeyCodes.Z,
+          right: Phaser.Input.Keyboard.KeyCodes.X,
+          up: Phaser.Input.Keyboard.KeyCodes.S,
         });
-
-        stars.children.iterate(function (child) {
-          //  Give each star a slightly different bounce
-          child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
-        });
-
-        bombs = this.physics.add.group();
 
         //  The score
         scoreText = this.add.text(16, 16, 'score: 0', {
@@ -233,8 +237,6 @@
 
         //  Collide the player and the stars with the platforms
         this.physics.add.collider(player, platforms);
-        this.physics.add.collider(stars, platforms);
-        this.physics.add.collider(bombs, platforms);
 
         // works for platforms atm - not sure why platforms doesnt work
         this.physics.add.collider(player, platform);
@@ -306,7 +308,7 @@
           this
         );
 
-        this.physics.add.collider(player, bombs, hitBomb, null, this);
+        // this.physics.add.collider(player, bombs, hitBomb, null, this);
 
         this.time.addEvent({
           delay: 1000, // 1000 ms = 1 second
@@ -314,6 +316,17 @@
           callbackScope: this,
           loop: true,
         });
+
+        // Testing
+        testFloor = this.physics.add.staticGroup();
+        testFloor
+          .create(300, 368, 'ground')
+          .setScale(2)
+          .refreshBody();
+
+        this.physics.add.collider(player, testFloor);
+        this.physics.add.collider(player2, testFloor);
+        this.physics.add.collider(player, player2);
       }
 
       function update() {
@@ -346,7 +359,7 @@
           this.cloudPlatform.body.touching.up;
 
         // Shrink after seconds if normal size
-        if (isOnCloudPlatform && player.p1Size == 2) {
+        if (isOnCloudPlatform && player.size == 2) {
           this.tweens.add({
             targets: this.cloudPlatform,
             alpha: 0,
@@ -369,7 +382,7 @@
           });
         }
 
-        if (isOnCloudPlatform && player.p1Size == 3) {
+        if (isOnCloudPlatform && player.size == 3) {
           this.tweens.add({
             targets: this.cloudPlatform,
             alpha: 0,
@@ -465,16 +478,16 @@
         }
         console.log(player.velocityY);
 
-        if (isOnFastPlatform && cursors.right.isDown) {
+        if (isOnFastPlatform && p1Controls.right.isDown) {
           speed = 300; // Boosted speed when going right on fastPlatform
         }
-        if (isOnFastPlatform && cursors.left.isDown) {
+        if (isOnFastPlatform && p1Controls.left.isDown) {
           speed = 100; // Boosted speed when going right on fastPlatform
         }
-        if (isOnSlowPlatform && cursors.right.isDown) {
+        if (isOnSlowPlatform && p1Controls.right.isDown) {
           speed = 100;
         }
-        if (isOnSlowPlatform && cursors.left.isDown) {
+        if (isOnSlowPlatform && p1Controls.left.isDown) {
           speed = 300;
         }
 
@@ -499,20 +512,41 @@
           return;
         }
 
-        if (cursors.left.isDown) {
+        // Player1 controls
+        if (p1Controls.left.isDown) {
           player.setVelocityX(-speed);
 
           player.anims.play('left', true);
-        } else if (cursors.right.isDown) {
+        } else if (p1Controls.right.isDown) {
           player.setVelocityX(speed);
 
           player.anims.play('right', true);
         } else {
+          player.setVelocityX(0);
           player.anims.play('turn');
         }
 
-        if (cursors.up.isDown && player.body.touching.down) {
+        if (p1Controls.up.isDown && player.body.touching.down) {
           player.setVelocityY(-330);
+        }
+
+        // Player2 controls
+
+        if (p2Controls.left.isDown) {
+          player2.setVelocityX(-speed);
+
+          player2.anims.play('left', true);
+        } else if (p2Controls.right.isDown) {
+          player2.setVelocityX(speed);
+
+          player2.anims.play('right', true);
+        } else {
+          player2.setVelocityX(0);
+          player2.anims.play('turn');
+        }
+
+        if (p2Controls.up.isDown && player2.body.touching.down) {
+          player2.setVelocityY(-330);
         }
 
         // add new platforms
@@ -690,52 +724,22 @@
         }
       }
 
-      // function shrinkSize(player, shrinkPlatform) {
-      //   if (
-      //     player.body.touching.down &&
-      //     shrinkPlatform.body.touching.up
-      //   ) {
-      //     if (player.size == 3) {
-      //       this.tweens.add({
-      //         targets: player,
-      //         scaleX: 1,
-      //         scaleY: 1,
-      //         duration: 300, // in milliseconds
-      //         ease: 'Power2',
-      //       });
-      //     }
-      //     player.size = 1;
-      //     player.ticker = 30;
-      //     this.tweens.add({
-      //       targets: player,
-      //       scaleX: 0.75,
-      //       scaleY: 0.75,
-      //       duration: 300, // in milliseconds
-      //       ease: 'Power2',
-      //       onComplete: () => {
-      //         // ⚠️ Update body size after tween finishes
-      //         player.body.setSize(player.width, player.height, true);
-      //       },
-      //     });
-      //   }
-      // }
-
       function makePlayerHeavy() {
         player.setGravityY(300);
         player.setBounce(0);
-        player.p1Size = 3;
+        player.size = 3;
       }
 
       function makePlayerLight() {
         player.setGravityY(100);
-        player.p1Size = 1;
+        player.size = 1;
       }
 
       function resetPlayerPhysics() {
         player.body.setGravityY(initalGravity);
         player.setBounce(0.01);
         player.setDrag(0);
-        player.p1Size = 2;
+        player.size = 2;
       }
 
       function hitBomb(player, bomb) {
