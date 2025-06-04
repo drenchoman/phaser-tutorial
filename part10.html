@@ -169,44 +169,20 @@
         this.cloudPlatform.setTint(0xbae0f3);
 
         // The player and its settings
-
-        //  Player physics properties. Give the little guy a slight bounce.
         //  initial player new player
+        function createPlayer(scene, x, y, tint = null) {
+          const player = scene.physics.add.sprite(x, y, 'dude');
+          player.setBounce(0.1);
+          player.setCollideWorldBounds(true);
+          player.body.checkCollision.down = true;
+          player.setGravityY(initalGravity);
+          player.size = 2;
+          if (tint) player.setTint(tint);
+          return player;
+        }
 
-        player = this.physics.add.sprite(300, 50, 'dude');
-        player.setBounce(0.01);
-        player.setCollideWorldBounds(true);
-        player.body.checkCollision.down = true;
-        player.speed = 160;
-        player.moves = true;
-        player.setGravityY(initalGravity);
-        player.size = 3;
-
-        // Player 2
-
-        player2 = this.physics.add.sprite(350, 50, 'dude');
-        player2.setBounce(0.01);
-        player2.setCollideWorldBounds(true);
-        player2.body.checkCollision.down = true;
-        player2.speed = 160;
-        player2.moves = true;
-        player2.setGravityY(initalGravity);
-        player2.size = 2;
-        player2.setTint(0xff3fbf);
-
-        this.player2Lose = () => {
-          // player.setVelocity(0, 0);
-
-          gameOver = true;
-          player2.body.checkCollision.none = true;
-          player2.unshrinkTimerStarted = false;
-          player2.ungrowTimeStarted = false;
-          player2.setTint(0xff0000);
-          player2.anims.play('turn');
-          this.time.delayedCall(2000, () => {
-            respawnPlayer2.call(this);
-          });
-        };
+        player = createPlayer(this, 300, 50);
+        player2 = createPlayer(this, 500, 50, 0x00ff00);
 
         //  Our player animations, turning, walking left and walking right.
         this.anims.create({
@@ -250,61 +226,65 @@
         });
 
         //  Collide the player and the stars with the platforms
-        this.physics.add.collider(player, platforms);
+        // this.physics.add.collider(player, platforms);
 
         // works for platforms atm - not sure why platforms doesnt work
-        this.physics.add.collider(player, platform);
+        this.physics.add.collider([player, player2], platform);
         this.physics.add.collider(
-          player,
+          [player, player2],
           bouncyPlatform,
           bounce,
           null,
           this
         );
         this.physics.add.collider(
-          player,
+          [player, player2],
           this.fastPlatform,
           goFast,
           null,
           this
         );
         this.physics.add.collider(
-          player,
+          [player, player2],
           this.slowPlatform,
           goSlow,
           null,
           this
         );
         this.physics.add.collider(
-          player,
+          [player, player2],
           ground,
-          playerLose,
+          (playerThatDied, ground) => {
+            playerLose(playerThatDied, ground, this); // pass the scene explicitly
+          },
           null,
           this
         );
         this.physics.add.collider(
-          player,
+          [player, player2],
           roof,
-          playerLose,
+          (playerThatDied, ground) => {
+            playerLose(playerThatDied, ground, this); // pass the scene explicitly
+          },
           null,
           this
         );
         this.physics.add.collider(
-          player,
+          [player, player2],
           this.growPlatform,
           growSize,
           null,
           this
         );
         this.physics.add.collider(
-          player,
+          [player, player2],
           this.shrinkPlatform,
           shrinkSize,
           null,
           this
         );
         this.physics.add.collider(
-          player,
+          [player, player2],
           this.cloudPlatform,
           cloudy,
           null,
@@ -331,49 +311,26 @@
       }
 
       function update() {
-        // Reset at the start of each frame
-        player.setVelocityX(0);
-        let player1Speed = player.speed || 160; //
-        let player2Speed = player2.speed || 160;
-        // console.log('unshrinks time', player.unshrinkTimerStarted);
-        // console.log('gravityY:', player.body.gravity.y);
-        // console.log('allowGravity:', player.body.allowGravity);
-        // console.log('immovable:', player.body.immovable);
-        // console.log('height', player.body.scaleX);
-
         const p1Larger = player.size > player2.size;
         const p2Larger = player2.size > player.size;
-
         const touchingRight =
           player.body.touching.right && player2.body.touching.left;
-
         const touchingLeft =
           player.body.touching.left && player2.body.touching.right;
 
         const p1TouchingAbove =
           player.body.touching.down && player2.body.touching.up;
-        // console.log(p1TouchingAbove, 'touching above');
 
+        const p2TouchingAbove =
+          player2.body.touching.down && player.body.touching.up;
+
+        // Crush on kill
         if (p1TouchingAbove && p1Larger) {
-          console.log('test');
-          this.player2Lose();
+          playerLose(player2, null, this);
         }
 
-        // Adjust push strength if larger
-        if (touchingRight && p1Larger) {
-          player1Speed = player1Speed * 2;
-        }
-
-        if (touchingRight && p2Larger) {
-          player2Speed = player1Speed * 2;
-        }
-
-        if (touchingLeft && p1Larger) {
-          player1Speed = player1Speed * 2;
-        }
-
-        if (touchingLeft && p2Larger) {
-          player2Speed = player2peed * 2;
+        if (p2TouchingAbove && p2Larger) {
+          playerLose(player, null, this);
         }
 
         const isOnFastPlatform =
@@ -397,193 +354,211 @@
           this.cloudPlatform.body.touching.up;
 
         // Shrink after seconds if normal size
-        if (isOnCloudPlatform && player.size == 2) {
-          this.tweens.add({
-            targets: this.cloudPlatform,
-            alpha: 0,
-            duration: 2000,
-            ease: 'Linear',
-            onComplete: () => {
-              const newX = Phaser.Math.Between(-50, 850); // random x within screen
-              const newY = 650 + Phaser.Math.Between(0, 200);
-              this.cloudPlatform.disableBody(true, true);
-              this.cloudPlatform.enableBody(
-                true,
-                newX,
-                newY,
-                true,
-                true
-              );
-              this.cloudPlatform.setAlpha(1);
-              this.cloudPlatform.setVelocityY(-velocity);
-            },
-          });
-        }
-
-        if (isOnCloudPlatform && player.size == 3) {
-          this.tweens.add({
-            targets: this.cloudPlatform,
-            alpha: 0,
-            duration: 1000,
-            ease: 'Linear',
-            onComplete: () => {
-              const newX = Phaser.Math.Between(-50, 850); // random x within screen
-              const newY = 650 + Phaser.Math.Between(0, 200);
-              this.cloudPlatform.disableBody(true, true);
-              this.cloudPlatform.enableBody(
-                true,
-                newX,
-                newY,
-                true,
-                true
-              );
-              this.cloudPlatform.setAlpha(1);
-              this.cloudPlatform.setVelocityY(-velocity);
-            },
-          });
-        }
-
-        if (
-          !isOnGrowPlatform &&
-          player.scaleX > 1 &&
-          !player.ungrowTimeStarted
-        ) {
-          player.ungrowTimeStarted = true;
-          this.time.delayedCall(10000, () => {
-            const stillOffGrowPlatform = !(
-              player.body.touching.down &&
-              this.growPlatform.body.touching.up
-            );
-
-            if (stillOffGrowPlatform && player.scaleX > 1) {
-              this.tweens.add({
-                targets: player,
-                scaleX: 1,
-                scaleY: 1,
-                duration: 500,
-                ease: 'Power2',
-                onComplete: () => {
-                  player.body.setSize(
-                    player.displayWidth,
-                    player.displayHeight,
-                    true
-                  );
-                  resetPlayerPhysics();
-                  player.ungrowTimerStarted = false;
-                },
-              });
-            } else {
-              player.ungrowTimeStarted = false;
-            }
-          });
-        }
-
-        // player not on shrink platform and is still small
-        if (
-          !isOnShrinkPlatform &&
-          player.scaleX < 1 &&
-          !player.unshrinkTimerStarted
-        ) {
-          player.unshrinkTimerStarted = true;
-
-          this.time.delayedCall(10000, () => {
-            const stillOffShrinkPlatform = !(
-              player.body.touching.down &&
-              this.shrinkPlatform.body.touching.up
-            );
-
-            if (stillOffShrinkPlatform && player.scaleX < 1) {
-              this.tweens.add({
-                targets: player,
-                scaleX: 1,
-                scaleY: 1,
-                duration: 500,
-                ease: 'Power2',
-                onComplete: () => {
-                  player.body.setSize(
-                    player.displayWidth,
-                    player.displayHeight,
-                    true
-                  );
-                  resetPlayerPhysics();
-                  player.unshrinkTimerStarted = false;
-                },
-              });
-            } else {
-              player.unshrinkTimerStarted = false;
-            }
-          });
-        }
-        console.log(player.velocityY);
-
-        if (isOnFastPlatform && p1Controls.right.isDown) {
-          player1Speed = 300; // Boosted speed when going right on fastPlatform
-        }
-        if (isOnFastPlatform && p1Controls.left.isDown) {
-          player1Speed = 100; // Boosted speed when going right on fastPlatform
-        }
-        if (isOnSlowPlatform && p1Controls.right.isDown) {
-          player1Speed = 100;
-        }
-        if (isOnSlowPlatform && p1Controls.left.isDown) {
-          player1Speed = 300;
-        }
-
-        if (player.size == 3 || player.size == 1) {
-          this.time.delayedCall(15000, () => {
+        function handleCloudPlatformInteraction(player) {
+          if (
+            isOnCloudPlatform &&
+            (player.size == 2 || player.size == 3)
+          ) {
+            const duration = player.size === 2 ? 2000 : 1000;
             this.tweens.add({
-              targets: player,
-              scaleX: 1,
-              scaleY: 1,
-              duration: 300,
-              ease: 'Power2',
+              targets: this.cloudPlatform,
+              alpha: 0,
+              duration: duration,
+              ease: 'Linear',
               onComplete: () => {
-                player.size = 2;
+                const newX = Phaser.Math.Between(-50, 850); // random x within screen
+                const newY = 650 + Phaser.Math.Between(0, 200);
+                this.cloudPlatform.disableBody(true, true);
+                this.cloudPlatform.enableBody(
+                  true,
+                  newX,
+                  newY,
+                  true,
+                  true
+                );
+                this.cloudPlatform.setAlpha(1);
+                this.cloudPlatform.setVelocityY(-velocity);
               },
             });
-          });
+          }
         }
+        handleCloudPlatformInteraction.call(this, player);
+        handleCloudPlatformInteraction.call(this, player2);
+
+        function handleUngrow(player, growPlatform, scene) {
+          const isOnGrowPlatform =
+            player.body.touching.down &&
+            growPlatform.body.touching.up;
+
+          if (
+            !isOnGrowPlatform &&
+            player.scaleX > 1 &&
+            !player.ungrowTimeStarted
+          ) {
+            player.ungrowTimeStarted = true;
+
+            scene.time.delayedCall(10000, () => {
+              const stillOffGrowPlatform = !(
+                player.body.touching.down &&
+                growPlatform.body.touching.up
+              );
+
+              if (stillOffGrowPlatform && player.scaleX > 1) {
+                scene.tweens.add({
+                  targets: player,
+                  scaleX: 1,
+                  scaleY: 1,
+                  duration: 500,
+                  ease: 'Power2',
+                  onComplete: () => {
+                    player.body.setSize(
+                      player.displayWidth,
+                      player.displayHeight,
+                      true
+                    );
+                    resetPlayerPhysics(player);
+                    player.ungrowTimeStarted = false;
+                  },
+                });
+              } else {
+                player.ungrowTimeStarted = false;
+              }
+            });
+          }
+        }
+        handleUngrow(player, this.growPlatform, this);
+        handleUngrow(player2, this.growPlatform, this);
+
+        function handleUnshrink(player, shrinkPlatform, scene) {
+          const isOnShrinkPlatform =
+            player.body.touching.down &&
+            shrinkPlatform.body.touching.up;
+
+          if (
+            !isOnShrinkPlatform &&
+            player.scaleX < 1 &&
+            !player.unshrinkTimerStarted
+          ) {
+            player.unshrinkTimerStarted = true;
+
+            scene.time.delayedCall(10000, () => {
+              const stillOffShrinkPlatform = !(
+                player.body.touching.down &&
+                shrinkPlatform.body.touching.up
+              );
+
+              if (stillOffShrinkPlatform && player.scaleX < 1) {
+                scene.tweens.add({
+                  targets: player,
+                  scaleX: 1,
+                  scaleY: 1,
+                  duration: 500,
+                  ease: 'Power2',
+                  onComplete: () => {
+                    player.body.setSize(
+                      player.displayWidth,
+                      player.displayHeight,
+                      true
+                    );
+                    resetPlayerPhysics(player);
+                    player.unshrinkTimerStarted = false;
+                  },
+                });
+              } else {
+                player.unshrinkTimerStarted = false;
+              }
+            });
+          }
+        }
+        handleUnshrink(player, this.shrinkPlatform, this);
+        handleUnshrink(player2, this.shrinkPlatform, this);
+
+        function updatePlayerSpeed({
+          controls,
+          isFast,
+          isSlow,
+          touchingLeft,
+          touchingRight,
+          isLarger,
+        }) {
+          let speed = 200; // Default speed
+
+          // Adjust based on platform type
+          if (isFast) {
+            if (controls.right.isDown) speed = 300;
+            else if (controls.left.isDown) speed = 100;
+          } else if (isSlow) {
+            if (controls.right.isDown) speed = 100;
+            else if (controls.left.isDown) speed = 300;
+          }
+
+          // Adjust based on collision and size
+          if ((touchingLeft || touchingRight) && isLarger) {
+            speed *= 2;
+          }
+
+          return speed;
+        }
+
+        player1Speed = updatePlayerSpeed({
+          controls: p1Controls,
+          isFast: isOnFastPlatform,
+          isSlow: isOnSlowPlatform,
+          touchingLeft,
+          touchingRight,
+          isLarger: p1Larger,
+        });
+        player2Speed = updatePlayerSpeed({
+          controls: p2Controls,
+          isFast: isOnFastPlatform,
+          isSlow: isOnSlowPlatform,
+          touchingLeft,
+          touchingRight,
+          isLarger: p2Larger,
+        });
+
+        // Shrink after 15 seconds
+        function resetPlayerSizeIfNeeded(player) {
+          if (player.size == 3 || player.size == 1) {
+            this.time.delayedCall(15000, () => {
+              this.tweens.add({
+                targets: player,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 300,
+                ease: 'Power2',
+                onComplete: () => {
+                  player.size = 2;
+                },
+              });
+            });
+          }
+        }
+        resetPlayerSizeIfNeeded.call(this, player);
+        resetPlayerSizeIfNeeded.call(this, player2);
 
         // if (gameOver) {
         //   return;
         // }
 
-        // Player1 controls
-        if (p1Controls.left.isDown) {
-          player.setVelocityX(-player1Speed);
-
-          player.anims.play('left', true);
-        } else if (p1Controls.right.isDown) {
-          player.setVelocityX(player1Speed);
-
-          player.anims.play('right', true);
-        } else {
-          player.setVelocityX(0);
-          player.anims.play('turn');
+        function handlePlayerControls(player, controls, speed) {
+          if (player.dead) return;
+          if (controls.left.isDown) {
+            player.setVelocityX(-speed);
+            player.anims.play('left', true);
+          } else if (controls.right.isDown) {
+            player.setVelocityX(speed);
+            player.anims.play('right', true);
+          } else {
+            player.setVelocityX(0);
+            player.anims.play('turn');
+          }
+          if (controls.up.isDown && player.body.touching.down) {
+            player.setVelocityY(-330);
+          }
         }
-
-        if (p1Controls.up.isDown && player.body.touching.down) {
-          player.setVelocityY(-330);
-        }
-
-        // Player2 controls
-
-        if (p2Controls.left.isDown) {
-          player2.setVelocityX(-player2Speed);
-
-          player2.anims.play('left', true);
-        } else if (p2Controls.right.isDown) {
-          player2.setVelocityX(player1Speed);
-
-          player2.anims.play('right', true);
-        } else {
-          player2.setVelocityX(0);
-          player2.anims.play('turn');
-        }
-
-        if (p2Controls.up.isDown && player2.body.touching.down) {
-          player2.setVelocityY(-330);
-        }
+        handlePlayerControls(player, p1Controls, player1Speed);
+        handlePlayerControls(player2, p2Controls, player2Speed);
 
         // add new platforms
         this.platforms.children.iterate((platform) => {
@@ -609,105 +584,59 @@
         }
       }
 
-      function playerLose() {
+      function playerLose(playerThatDied, ground, scene) {
         // player.setVelocity(0, 0);
+        playerThatDied.dead = true;
+        playerThatDied.body.checkCollision.none = true;
+        playerThatDied.unshrinkTimerStarted = false;
+        playerThatDied.ungrowTimeStarted = false;
+        playerThatDied.setTint(0xff0000);
+        playerThatDied.anims.play('turn');
 
-        // gameOver = true;
-        player.body.checkCollision.none = true;
-        player.unshrinkTimerStarted = false;
-        player.ungrowTimeStarted = false;
-        player.setTint(0xff0000);
-        player.anims.play('turn');
-        this.time.delayedCall(2000, () => {
-          respawnPlayer.call(this);
+        scene.time.delayedCall(2000, () => {
+          const tint = playerThatDied === player2 ? 0x00ff00 : null;
+          const randomX = Phaser.Math.Between(100, 700);
+          respawnPlayer.call(
+            scene,
+            playerThatDied,
+            randomX,
+            75,
+            tint
+          );
         });
       }
 
-      function player2Lose(scene) {
-        // player.setVelocity(0, 0);
+      function respawnPlayer(playerObj, x, y, tint = null) {
+        playerObj.dead = false;
+        this.tweens.killTweensOf(playerObj);
+        playerObj.setScale(1);
+        playerObj.body.checkCollision.none = false;
+        playerObj.setCollideWorldBounds(true);
+        playerObj.body.checkCollision.down = true;
 
-        gameOver = true;
-        player2.body.checkCollision.none = true;
-        player2.unshrinkTimerStarted = false;
-        player2.ungrowTimeStarted = false;
-        player2.setTint(0xff0000);
-        player2.anims.play('turn');
-        this.time.delayedCall(2000, () => {
-          respawnPlayer2.call(this);
-        });
-      }
-
-      function respawnPlayer() {
-        // Step 1: Reset scale
-        this.tweens.killTweensOf(player);
-        player.setScale(1);
-
-        // Step 2: Re-enable body
-        // player.body.enable = true;
-        player.body.checkCollision.none = false;
-        player.setCollideWorldBounds(true);
-        player.body.checkCollision.down = true;
-
-        // Step 3: Force body to sync with display
-        player.body.setSize(
-          player.displayWidth,
-          player.displayHeight,
+        playerObj.body.setSize(
+          playerObj.displayWidth,
+          playerObj.displayHeight,
           true
         );
-        player.body.setOffset(0, 0);
-        // player.body.updateFromGameObject();
+        playerObj.body.setOffset(0, 0);
 
-        // Step 4: Reset physics properties
-        player.setGravityY(initalGravity);
-        player.body.allowGravity = true;
-        player.body.setImmovable(false);
-        player.setBounce(0.01);
-        player.setVelocity(0, 0);
+        playerObj.setGravityY(initalGravity);
+        playerObj.body.allowGravity = true;
+        playerObj.body.setImmovable(false);
+        playerObj.setBounce(0.01);
+        playerObj.setVelocity(0, 0);
 
-        // Step 5: Reposition the player
-        player.setPosition(290, 75);
+        playerObj.setPosition(x, y);
 
-        // Step 6: Restore state
-        player.clearTint();
-        resetPlayerPhysics(player);
-        // gameOver = false;
+        playerObj.clearTint();
+        if (tint !== null) {
+          playerObj.setTint(tint);
+        }
+
+        resetPlayerPhysics(playerObj);
       }
 
-      function respawnPlayer2() {
-        // Step 1: Reset scale
-        this.tweens.killTweensOf(player2);
-        player2.setScale(1);
-
-        // Step 2: Re-enable body
-        // player.body.enable = true;
-        player2.body.checkCollision.none = false;
-        player2.setCollideWorldBounds(true);
-        player2.body.checkCollision.down = true;
-
-        // Step 3: Force body to sync with display
-        player2.body.setSize(
-          player2.displayWidth,
-          player2.displayHeight,
-          true
-        );
-        player2.body.setOffset(0, 0);
-        // player.body.updateFromGameObject();
-
-        // Step 4: Reset physics properties
-        player2.setGravityY(initalGravity);
-        player2.body.allowGravity = true;
-        player2.body.setImmovable(false);
-        player2.setBounce(0.01);
-        player2.setVelocity(0, 0);
-
-        // Step 5: Reposition the player
-        player2.setPosition(290, 75);
-
-        // Step 6: Restore state
-        player2.clearTint();
-        resetPlayerPhysics(player2);
-        gameOver = false;
-      }
       function bounce(player, bouncyPlatform) {
         if (
           player.body.touching.down &&
@@ -717,17 +646,21 @@
         }
       }
 
+      // Dont need the below
+
       function goFast(player, fastPlatform) {
-        console.log('gofast');
+        // console.log('gofast');
       }
 
       function cloudy(player, cloudPlatform) {
-        console.log('cloudy...');
+        // console.log('cloudy...');
       }
 
       function goSlow(player, slowPlatform) {
-        console.log('goslow');
+        // console.log('goslow');
       }
+
+      // Dont need the above
 
       function growSize(player, growPlatform) {
         if (
@@ -735,7 +668,7 @@
           growPlatform.body.touching.up &&
           player.scaleX <= 1
         ) {
-          makePlayerHeavy();
+          makePlayerHeavy(player);
           this.tweens.add({
             targets: player,
             scaleX: 1.2,
@@ -762,7 +695,7 @@
           shrinkPlatform.body.touching.up &&
           player.scaleX >= 1
         ) {
-          makePlayerLight();
+          makePlayerLight(player);
           this.tweens.add({
             targets: player,
             scaleX: 0.75,
@@ -783,13 +716,13 @@
         }
       }
 
-      function makePlayerHeavy() {
+      function makePlayerHeavy(player) {
         player.setGravityY(300);
         player.setBounce(0);
         player.size = 3;
       }
 
-      function makePlayerLight() {
+      function makePlayerLight(player) {
         player.setGravityY(100);
         player.size = 1;
       }
@@ -799,16 +732,6 @@
         player.setBounce(0.01);
         player.setDrag(0);
         player.size = 2;
-      }
-
-      function hitBomb(player, bomb) {
-        this.physics.pause();
-
-        player.setTint(0xff0000);
-
-        player.anims.play('turn');
-
-        gameOver = true;
       }
     </script>
   </body>
