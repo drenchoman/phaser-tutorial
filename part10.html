@@ -74,18 +74,19 @@
         //  A simple background for our game
         this.add.image(400, 300, 'sky');
 
-        ground = this.physics.add.sprite(400, 620, 'ground');
+        ground = this.physics.add.sprite(400, 600, 'ground');
         ground.displayWidth = 800;
         ground.body.allowGravity = false;
+        ground.body.setImmovable(true);
         ground.setTint(0xff0000);
-        this.tweens.add({
-          targets: ground,
-          y: 595,
-          duration: 1000,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
+        // this.tweens.add({
+        //   targets: ground,
+        //   y: 595,
+        //   duration: 1000,
+        //   yoyo: true,
+        //   repeat: -1,
+        //   ease: 'Sine.easeInOut',
+        // });
 
         roof = this.physics.add.sprite(400, -15, 'ground');
         roof.displayWidth = 800;
@@ -222,11 +223,13 @@
           up: Phaser.Input.Keyboard.KeyCodes.S,
         });
 
+        // TEXT //
+
         //  The score
-        scoreText = this.add.text(16, 16, 'score: 0', {
-          fontSize: '32px',
-          fill: '#000',
-        });
+        // scoreText = this.add.text(16, 16, 'score: 0', {
+        //   fontSize: '32px',
+        //   fill: '#000',
+        // });
 
         p1Lives = this.add.text(0, 0, 'P1 Lives: 3', {
           fontSize: '32px',
@@ -236,10 +239,7 @@
           fontSize: '32px',
           fill: '#000',
         });
-        //  Collide the player and the stars with the platforms
-        // this.physics.add.collider(player, platforms);
 
-        // works for platforms atm - not sure why platforms doesnt work
         this.physics.add.collider([player1, player2], platform);
         this.physics.add.collider(
           [player1, player2],
@@ -567,7 +567,7 @@
         resetPlayerSizeIfNeeded.call(this, player2);
 
         if (gameOver) {
-          gameOver();
+          setGameOver(this);
         }
 
         function handlePlayerControls(player, controls, speed) {
@@ -593,7 +593,7 @@
         this.platforms.children.iterate((platform) => {
           if (platform.y + platform.displayHeight / 2 < 0) {
             // Off the top of the screen — reposition somewhere below
-            const newX = Phaser.Math.Between(-50, 850); // random x within screen
+            const newX = Phaser.Math.Between(0, 850); // random x within screen
             const newY = 650 + Phaser.Math.Between(0, 200); // respawn below screen
             // platform.enableBody(true, newX, newY, true, true);
 
@@ -603,25 +603,25 @@
         });
       }
 
-      function gameOver() {
-        this.physics.pause();
+      function setGameOver(scene) {
+        scene.physics.pause();
 
         player1.anims.pause(); // Stop animations
         player2.anims.pause();
 
         // Optional: Disable input
-        this.input.keyboard.enabled = false;
-
-        // Optional: Show game over text
-        this.add.text(
-          this.scale.width / 2,
-          this.scale.height / 2,
-          'Game Over',
-          {
-            fontSize: '48px',
-            fill: '#ff0000',
-          }
-        );
+        scene.add
+          .text(
+            scene.cameras.main.width / 2,
+            scene.cameras.main.height / 3,
+            'GAME OVER',
+            {
+              fontSize: '64px',
+              fill: '#ff0000',
+              fontStyle: 'bold',
+            }
+          )
+          .setOrigin(0.5); // center align
       }
 
       function updateLives(player) {
