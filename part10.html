@@ -79,14 +79,6 @@
         ground.body.allowGravity = false;
         ground.body.setImmovable(true);
         ground.setTint(0xff0000);
-        // this.tweens.add({
-        //   targets: ground,
-        //   y: 595,
-        //   duration: 1000,
-        //   yoyo: true,
-        //   repeat: -1,
-        //   ease: 'Sine.easeInOut',
-        // });
 
         roof = this.physics.add.sprite(400, -15, 'ground');
         roof.displayWidth = 800;
@@ -115,61 +107,6 @@
         );
         platform.displayWidth = 300;
         platform.setVelocityY(-velocity); // float upwards
-
-        const bouncyPlatform = this.platforms.create(
-          Phaser.Math.Between(-50, 850),
-          Phaser.Math.Between(500, 700),
-          'ground'
-        );
-        bouncyPlatform.displayWidth = 200;
-        bouncyPlatform.setVelocityY(-velocity);
-        bouncyPlatform.setTint(0x544223);
-
-        this.fastPlatform = this.platforms.create(
-          Phaser.Math.Between(-100, 900),
-          Phaser.Math.Between(900, 1110),
-          'ground'
-        );
-        this.fastPlatform.displayWidth = 200;
-        this.fastPlatform.setVelocityY(-velocity);
-        this.fastPlatform.setTint(0x800080);
-
-        this.slowPlatform = this.platforms.create(
-          Phaser.Math.Between(-100, 900),
-          Phaser.Math.Between(1000, 1300),
-          'ground'
-        );
-        this.slowPlatform.displayWidth = 200;
-        this.slowPlatform.setVelocityY(-velocity);
-        this.slowPlatform.setTint(0xe47920);
-
-        this.growPlatform = this.platforms.create(
-          Phaser.Math.Between(-200, 950),
-          Phaser.Math.Between(1100, 1300),
-          'ground'
-        );
-        this.growPlatform.displayWidth = 250;
-        this.growPlatform.setVelocityY(-velocity);
-        this.growPlatform.setTint(0x00ff00);
-
-        this.shrinkPlatform = this.platforms.create(
-          Phaser.Math.Between(-200, 950),
-          Phaser.Math.Between(700, 1300),
-          'ground'
-        );
-
-        this.shrinkPlatform.displayWidth = 250;
-        this.shrinkPlatform.setVelocityY(-velocity);
-        this.shrinkPlatform.setTint(0x1e7df0);
-
-        this.cloudPlatform = this.platforms.create(
-          Phaser.Math.Between(-50, 1000),
-          Phaser.Math.Between(800, 1200)
-        );
-
-        this.cloudPlatform.displayWidth = 250;
-        this.cloudPlatform.setVelocityY(-velocity);
-        this.cloudPlatform.setTint(0xbae0f3);
 
         // The player and its settings
         //  initial player new player
@@ -240,32 +177,9 @@
           fill: '#000',
         });
 
+        // Colliders
+
         this.physics.add.collider([player1, player2], platform);
-        this.physics.add.collider(
-          [player1, player2],
-          bouncyPlatform,
-          bounce,
-          null,
-          this
-        );
-        this.physics.add.collider(
-          [player1, player2],
-          this.fastPlatform,
-          (playerObj, platform) => {
-            playerObj.currentPlatformType = 'fast';
-          },
-          null,
-          this
-        );
-        this.physics.add.collider(
-          [player1, player2],
-          this.slowPlatform,
-          (playerObj, platform) => {
-            playerObj.currentPlatformType = 'slow';
-          },
-          null,
-          this
-        );
         this.physics.add.collider(
           [player1, player2],
           ground,
@@ -284,27 +198,66 @@
           null,
           this
         );
-        this.physics.add.collider(
-          [player1, player2],
-          this.growPlatform,
-          growSize,
-          null,
-          this
-        );
-        this.physics.add.collider(
-          [player1, player2],
-          this.shrinkPlatform,
-          shrinkSize,
-          null,
-          this
-        );
-        this.physics.add.collider(
-          [player1, player2],
-          this.cloudPlatform,
-          cloudy,
-          null,
-          this
-        );
+        this.physics.add.collider(player1, player2);
+
+        function spawnPlatform(scene) {
+          const types = [
+            { tint: 0xff0000, width: 300, effect: null }, // normal
+            { tint: 0x544223, width: 200, effect: 'bouncy' },
+            { tint: 0x800080, width: 200, effect: 'fast' },
+            { tint: 0xe47920, width: 200, effect: 'slow' },
+            { tint: 0x00ff00, width: 250, effect: 'grow' },
+            { tint: 0x1e7df0, width: 250, effect: 'shrink' },
+            { tint: 0xbae0f3, width: 250, effect: 'cloud' },
+          ];
+          const choice = Phaser.Utils.Array.GetRandom(types);
+          const platform = scene.platforms.create(
+            Phaser.Math.Between(-100, 900),
+            Phaser.Math.Between(700, 1000),
+            'ground'
+          );
+          platform.displayWidth = choice.width;
+          platform.setVelocityY(-velocity);
+          platform.setTint(choice.tint);
+          platform.effect = choice.effect;
+
+          scene.physics.add.collider(
+            [player1, player2],
+            platform,
+            (player, plat) => {
+              switch (plat.effect) {
+                case 'bouncy':
+                  bounce(player, plat);
+                  break;
+                case 'fast':
+                  player.currentPlatformType = 'fast';
+                  break;
+                case 'slow':
+                  player.currentPlatformType = 'slow';
+                  break;
+                case 'grow':
+                  growSize(player, plat, scene);
+                  break;
+                case 'shrink':
+                  shrinkSize(player, plat, scene);
+                  break;
+                case 'cloud':
+                  cloudy(player, plat, scene);
+                  break;
+                default:
+                  // normal platform
+                  break;
+              }
+            }
+          );
+
+          scene.time.addEvent({
+            delay: Phaser.Math.Between(1500, 3500),
+            callback: () => spawnPlatform(scene),
+          });
+        }
+        spawnPlatform(this);
+
         // Update score 1 PLAYER //
         // this.time.addEvent({
         //   delay: 1000, // 1000 ms = 1 second
@@ -322,10 +275,15 @@
 
         // this.physics.add.collider(player1, testFloor);
         // this.physics.add.collider(player2, testFloor);
-        this.physics.add.collider(player1, player2);
       }
 
       function update() {
+        this.platforms.getChildren().forEach((platform) => {
+          if (platform.effect) {
+            handlePlatformEffects(player1, platform, this);
+            handlePlatformEffects(player2, platform, this);
+          }
+        });
         const p1Larger = player1.size > player2.size;
         const p2Larger = player2.size > player1.size;
         const touchingRight =
@@ -355,137 +313,290 @@
         if (p2TouchingAbove && p2Larger) {
           playerLose(player1, null, this);
         }
+        function handlePlatformEffects(player, platform, scene) {
+          const touching =
+            player.body.touching.down && platform.body.touching.up;
 
-        // const isOnShrinkPlatform =
-        //   player.body.touching.down &&
-        //   this.shrinkPlatform.body.touching.up;
-
-        // const isOnGrowPlatform =
-        //   player.body.touching.down &&
-        //   this.growPlatform.body.touching.up;
-
-        // Shrink after seconds if normal size
-        function handleCloudPlatformInteraction(player) {
-          const isOnCloudPlatform =
-            player.body.touching.down &&
-            this.cloudPlatform.body.touching.up;
-          if (
-            isOnCloudPlatform &&
-            (player.size == 2 || player.size == 3)
-          ) {
-            const duration = player.size === 2 ? 2000 : 1000;
-            this.tweens.add({
-              targets: this.cloudPlatform,
-              alpha: 0,
-              duration: duration,
-              ease: 'Linear',
-              onComplete: () => {
-                const newX = Phaser.Math.Between(-50, 850); // random x within screen
-                const newY = 650 + Phaser.Math.Between(0, 200);
-                this.cloudPlatform.disableBody(true, true);
-                this.cloudPlatform.enableBody(
-                  true,
-                  newX,
-                  newY,
-                  true,
-                  true
-                );
-                this.cloudPlatform.setAlpha(1);
-                this.cloudPlatform.setVelocityY(-velocity);
-              },
-            });
-          }
-        }
-        handleCloudPlatformInteraction.call(this, player1);
-        handleCloudPlatformInteraction.call(this, player2);
-
-        function handleUngrow(player, growPlatform, scene) {
-          const isOnGrowPlatform =
-            player.body.touching.down &&
-            growPlatform.body.touching.up;
-
-          if (
-            !isOnGrowPlatform &&
-            player.scaleX > 1 &&
-            !player.ungrowTimeStarted
-          ) {
-            player.ungrowTimeStarted = true;
-
-            scene.time.delayedCall(10000, () => {
-              const stillOffGrowPlatform = !(
-                player.body.touching.down &&
-                growPlatform.body.touching.up
-              );
-
-              if (stillOffGrowPlatform && player.scaleX > 1) {
+          switch (platform.effect) {
+            case 'grow':
+              if (touching && player.scaleX <= 1) {
+                makePlayerHeavy(player);
                 scene.tweens.add({
                   targets: player,
-                  scaleX: 1,
-                  scaleY: 1,
-                  duration: 500,
+                  scaleX: 1.2,
+                  scaleY: 1.2,
+                  duration: 350,
                   ease: 'Power2',
                   onComplete: () => {
-                    player.body.setSize(
-                      player.displayWidth,
-                      player.displayHeight,
-                      true
-                    );
-                    resetPlayerPhysics(player);
+                    const offsetY =
+                      player.displayHeight - player.body.height;
+                    player.setOffset(0, offsetY);
+                    player.setSize(player.width, player.height, true);
                     player.ungrowTimeStarted = false;
                   },
                 });
-              } else {
-                player.ungrowTimeStarted = false;
+              } else if (
+                !touching &&
+                player.scaleX > 1 &&
+                !player.ungrowTimeStarted
+              ) {
+                player.ungrowTimeStarted = true;
+                scene.time.delayedCall(10000, () => {
+                  const stillOff = !(
+                    player.body.touching.down &&
+                    platform.body.touching.up
+                  );
+                  if (stillOff && player.scaleX > 1) {
+                    scene.tweens.add({
+                      targets: player,
+                      scaleX: 1,
+                      scaleY: 1,
+                      duration: 500,
+                      ease: 'Power2',
+                      onComplete: () => {
+                        player.body.setSize(
+                          player.displayWidth,
+                          player.displayHeight,
+                          true
+                        );
+                        resetPlayerPhysics(player);
+                        player.ungrowTimeStarted = false;
+                      },
+                    });
+                  } else {
+                    player.ungrowTimeStarted = false;
+                  }
+                });
               }
-            });
-          }
-        }
-        handleUngrow(player1, this.growPlatform, this);
-        handleUngrow(player2, this.growPlatform, this);
+              break;
 
-        function handleUnshrink(player, shrinkPlatform, scene) {
-          const isOnShrinkPlatform =
-            player.body.touching.down &&
-            shrinkPlatform.body.touching.up;
-
-          if (
-            !isOnShrinkPlatform &&
-            player.scaleX < 1 &&
-            !player.unshrinkTimerStarted
-          ) {
-            player.unshrinkTimerStarted = true;
-
-            scene.time.delayedCall(10000, () => {
-              const stillOffShrinkPlatform = !(
-                player.body.touching.down &&
-                shrinkPlatform.body.touching.up
-              );
-
-              if (stillOffShrinkPlatform && player.scaleX < 1) {
+            case 'shrink':
+              if (touching && player.scaleX >= 1) {
+                makePlayerLight(player);
                 scene.tweens.add({
                   targets: player,
-                  scaleX: 1,
-                  scaleY: 1,
-                  duration: 500,
+                  scaleX: 0.8,
+                  scaleY: 0.8,
+                  duration: 350,
                   ease: 'Power2',
                   onComplete: () => {
-                    player.body.setSize(
-                      player.displayWidth,
-                      player.displayHeight,
-                      true
-                    );
-                    resetPlayerPhysics(player);
+                    const offsetY =
+                      player.displayHeight - player.body.height;
+                    player.setOffset(0, offsetY);
+                    player.setSize(player.width, player.height, true);
                     player.unshrinkTimerStarted = false;
                   },
                 });
-              } else {
-                player.unshrinkTimerStarted = false;
+              } else if (
+                !touching &&
+                player.scaleX < 1 &&
+                !player.unshrinkTimerStarted
+              ) {
+                player.unshrinkTimerStarted = true;
+                scene.time.delayedCall(10000, () => {
+                  const stillOff = !(
+                    player.body.touching.down &&
+                    platform.body.touching.up
+                  );
+                  if (stillOff && player.scaleX < 1) {
+                    scene.tweens.add({
+                      targets: player,
+                      scaleX: 1,
+                      scaleY: 1,
+                      duration: 500,
+                      ease: 'Power2',
+                      onComplete: () => {
+                        player.body.setSize(
+                          player.displayWidth,
+                          player.displayHeight,
+                          true
+                        );
+                        resetPlayerPhysics(player);
+                        player.unshrinkTimerStarted = false;
+                      },
+                    });
+                  } else {
+                    player.unshrinkTimerStarted = false;
+                  }
+                });
               }
-            });
+              break;
+
+            case 'cloud':
+              if (
+                touching &&
+                (player.size === 2 || player.size === 3)
+              ) {
+                const duration = player.size === 2 ? 2000 : 1000;
+                scene.tweens.add({
+                  targets: platform,
+                  alpha: 0,
+                  duration: duration,
+                  ease: 'Linear',
+                  onComplete: () => {
+                    const newX = Phaser.Math.Between(-50, 850);
+                    const newY = 650 + Phaser.Math.Between(0, 200);
+                    platform.disableBody(true, true);
+                    platform.enableBody(true, newX, newY, true, true);
+                    platform.setAlpha(1);
+                    platform.setVelocityY(-velocity);
+                  },
+                });
+              }
+              break;
+
+            // Optional: add 'bouncy', 'fast', 'slow' if you want to include them here too
           }
         }
-        handleUnshrink(player1, this.shrinkPlatform, this);
-        handleUnshrink(player2, this.shrinkPlatform, this);
+
+        // function handleUngrow(player, growPlatform, scene) {
+        //   const isOnGrowPlatform =
+        //     player.body.touching.down &&
+        //     growPlatform.body.touching.up;
+
+        //   if (
+        //     !isOnGrowPlatform &&
+        //     player.scaleX > 1 &&
+        //     !player.ungrowTimeStarted
+        //   ) {
+        //     player.ungrowTimeStarted = true;
+
+        //     scene.time.delayedCall(10000, () => {
+        //       const stillOffGrowPlatform = !(
+        //         player.body.touching.down &&
+        //         growPlatform.body.touching.up
+        //       );
+
+        //       if (stillOffGrowPlatform && player.scaleX > 1) {
+        //         scene.tweens.add({
+        //           targets: player,
+        //           scaleX: 1,
+        //           scaleY: 1,
+        //           duration: 500,
+        //           ease: 'Power2',
+        //           onComplete: () => {
+        //             player.body.setSize(
+        //               player.displayWidth,
+        //               player.displayHeight,
+        //               true
+        //             );
+        //             resetPlayerPhysics(player);
+        //             player.ungrowTimeStarted = false;
+        //           },
+        //         });
+        //       } else {
+        //         player.ungrowTimeStarted = false;
+        //       }
+        //     });
+        //   }
+        // }
+        // function handleUngrowForPlayer(player, scene) {
+        //   scene.platforms.getChildren().forEach((platform) => {
+        //     if (platform.effect === 'grow') {
+        //       handleUngrow(player, platform, scene);
+        //     }
+        //   });
+        // }
+        // handleUngrowForPlayer(player1, this);
+        // handleUngrowForPlayer(player2, this);
+
+        // function handleUnshrink(player, shrinkPlatform, scene) {
+        //   const isOnShrinkPlatform =
+        //     player.body.touching.down &&
+        //     shrinkPlatform.body.touching.up;
+
+        //   if (
+        //     !isOnShrinkPlatform &&
+        //     player.scaleX < 1 &&
+        //     !player.unshrinkTimerStarted
+        //   ) {
+        //     player.unshrinkTimerStarted = true;
+
+        //     scene.time.delayedCall(10000, () => {
+        //       const stillOffShrinkPlatform = !(
+        //         player.body.touching.down &&
+        //         shrinkPlatform.body.touching.up
+        //       );
+
+        //       if (stillOffShrinkPlatform && player.scaleX < 1) {
+        //         scene.tweens.add({
+        //           targets: player,
+        //           scaleX: 1,
+        //           scaleY: 1,
+        //           duration: 500,
+        //           ease: 'Power2',
+        //           onComplete: () => {
+        //             player.body.setSize(
+        //               player.displayWidth,
+        //               player.displayHeight,
+        //               true
+        //             );
+        //             resetPlayerPhysics(player);
+        //             player.unshrinkTimerStarted = false;
+        //           },
+        //         });
+        //       } else {
+        //         player.unshrinkTimerStarted = false;
+        //       }
+        //     });
+        //   }
+        // }
+        // function handleUnshrinkForPlayer(player, scene) {
+        //   scene.platforms.getChildren().forEach((platform) => {
+        //     if (platform.effect === 'shrink') {
+        //       handleUnshrink(player, platform, scene);
+        //     }
+        //   });
+        // }
+        // handleUnshrinkForPlayer(player1, this);
+        // handleUnshrinkForPlayer(player2, this);
+
+        // function handleCloudPlatformInteraction(
+        //   player,
+        //   cloudPlatform,
+        //   scene
+        // ) {
+        //   const isOnCloudPlatform =
+        //     player.body.touching.down &&
+        //     cloudPlatform.body.touching.up;
+
+        //   if (
+        //     isOnCloudPlatform &&
+        //     (player.size === 2 || player.size === 3)
+        //   ) {
+        //     const duration = player.size === 2 ? 2000 : 1000;
+
+        //     scene.tweens.add({
+        //       targets: cloudPlatform,
+        //       alpha: 0,
+        //       duration: duration,
+        //       ease: 'Linear',
+        //       onComplete: () => {
+        //         const newX = Phaser.Math.Between(-50, 850); // random x within screen
+        //         const newY = 650 + Phaser.Math.Between(0, 200);
+        //         cloudPlatform.disableBody(true, true);
+        //         cloudPlatform.enableBody(
+        //           true,
+        //           newX,
+        //           newY,
+        //           true,
+        //           true
+        //         );
+        //         cloudPlatform.setAlpha(1);
+        //         cloudPlatform.setVelocityY(-velocity);
+        //       },
+        //     });
+        //   }
+        // }
+        // function handleCloudPlatformForPlayer(player, scene) {
+        //   scene.platforms.getChildren().forEach((platform) => {
+        //     if (platform.effect === 'cloud') {
+        //       handleCloudPlatformInteraction(player, platform, scene);
+        //     }
+        //   });
+        // }
+        // handleCloudPlatformForPlayer(player1, this);
+        // handleCloudPlatformForPlayer(player2, this);
 
         function updatePlayerSpeed({
           scene,
@@ -501,16 +612,6 @@
             player.currentPlatformType === 'fast';
           const isOnSlowPlatform =
             player.currentPlatformType === 'slow';
-
-          // const isOnFastPlatform =
-          //   player.body.touching.down &&
-          //   scene.fastPlatform.body.touching.up;
-
-          // const isOnSlowPlatform =
-          //   player.body.touching.down &&
-          //   scene.slowPlatform.body.touching.up;
-          // console.log('player2', isOnSlowPlatform);
-          // console.log('player1', isOnFastPlatform);
 
           // Adjust based on platform type
           if (isOnFastPlatform) {
@@ -590,17 +691,17 @@
         handlePlayerControls(player2, p2Controls, player2Speed);
 
         // add new platforms
-        this.platforms.children.iterate((platform) => {
-          if (platform.y + platform.displayHeight / 2 < 0) {
-            // Off the top of the screen — reposition somewhere below
-            const newX = Phaser.Math.Between(0, 850); // random x within screen
-            const newY = 650 + Phaser.Math.Between(0, 200); // respawn below screen
-            // platform.enableBody(true, newX, newY, true, true);
+        // this.platforms.children.iterate((platform) => {
+        //   if (platform.y + platform.displayHeight / 2 < 0) {
+        //     // Off the top of the screen — reposition somewhere below
+        //     const newX = Phaser.Math.Between(0, 850); // random x within screen
+        //     const newY = 650 + Phaser.Math.Between(0, 200); // respawn below screen
+        //     // platform.enableBody(true, newX, newY, true, true);
 
-            platform.setPosition(newX, newY);
-            platform.setVelocityY(-velocity);
-          }
-        });
+        //     platform.setPosition(newX, newY);
+        //     platform.setVelocityY(-velocity);
+        //   }
+        // });
       }
 
       function setGameOver(scene) {
@@ -719,7 +820,7 @@
       }
 
       function cloudy(player, cloudPlatform) {
-        // console.log('cloudy...');
+        //  console.log('cloud')
       }
 
       function goSlow(player, slowPlatform) {
@@ -728,14 +829,14 @@
 
       // Dont need the above
 
-      function growSize(player, growPlatform) {
+      function growSize(player, growPlatform, scene) {
         if (
           player.body.touching.down &&
           growPlatform.body.touching.up &&
           player.scaleX <= 1
         ) {
           makePlayerHeavy(player);
-          this.tweens.add({
+          scene.tweens.add({
             targets: player,
             scaleX: 1.2,
             scaleY: 1.2,
@@ -755,14 +856,14 @@
         }
       }
 
-      function shrinkSize(player, shrinkPlatform) {
+      function shrinkSize(player, shrinkPlatform, scene) {
         if (
           player.body.touching.down &&
           shrinkPlatform.body.touching.up &&
           player.scaleX >= 1
         ) {
           makePlayerLight(player);
-          this.tweens.add({
+          scene.tweens.add({
             targets: player,
             scaleX: 0.75,
             scaleY: 0.75,
